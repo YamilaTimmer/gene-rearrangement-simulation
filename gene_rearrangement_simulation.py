@@ -77,8 +77,8 @@ def find_v_cluster(dna_seq, heptamer_positions, nonamer_positions):
         Finds sequences of V clusters.
 
         :param dna_seq: (str) The sequence to search.
-        :param heptamer_positions: (list) The indexes of all found heptameres.
-        :param nonamer_positions: (list) The indexes of all found nonameres.
+        :param heptamer_positions: (list) The indexes of all found heptamers.
+        :param nonamer_positions: (list) The indexes of all found nonamers.
         :return: cluster_sequences (list) The sequences of v clusters.
         """
 
@@ -88,11 +88,11 @@ def find_v_cluster(dna_seq, heptamer_positions, nonamer_positions):
     v_cluster = dna_seq[0:heptamer_indexes[0]]
     cluster_sequences.append(v_cluster)
 
-    #
+    # V-clusters are found between the end of a nonamer (nonamer + 9) and the start of a heptamer (heptamer -1)
     for nonamer_position in nonamer_positions:
         for heptamer_position in heptamer_positions:
-            if heptamer_position > nonamer_position + 9:
-                v_cluster = dna_seq[nonamer_position + 9:heptamer_position]
+            if heptamer_position - 1 > nonamer_position + 9:
+                v_cluster = dna_seq[nonamer_position + 9:heptamer_position -1]
                 cluster_sequences.append(v_cluster)
                 break
 
@@ -104,7 +104,7 @@ def find_d_cluster(dna_seq, heptamer_positions):
     Finds sequences of D clusters
 
     :param dna_seq: (str) The sequence to search.
-    :param heptamer_positions: (list) The indexes of the heptameres.
+    :param heptamer_positions: (list) The indexes of the heptamers.
     :return: cluster_sequences (list) The sequences of D clusters.
     """
 
@@ -113,7 +113,7 @@ def find_d_cluster(dna_seq, heptamer_positions):
     # Iterates over the list of heptamer_indexes, '-1' is needed because the final heptamer cannot be iterated with [i+1]
     for i in range(len(heptamer_positions) - 1):
 
-        # D clusters are found between the end of RSS (heptamer + 7) and the start of a new RSS (heptamer -1)
+        # D-clusters are found between the end of RSS (heptamer + 7) and the start of a new RSS (heptamer -1)
         d_cluster = dna_seq[heptamer_positions[i] + 7:heptamer_positions[i + 1] -1]
         cluster_sequences.append(d_cluster)
 
@@ -124,8 +124,8 @@ def find_j_cluster(dna_seq, heptamer_positions, nonamer_positions):
     """
     Finds sequences of j clusters
     :param dna_seq: (str) The sequence to search.
-    :param heptamer_positions: (list) The indexes of the heptameres.
-    :param nonamer_positions: (list) The indexes of the nonameres.
+    :param heptamer_positions: (list) The indexes of the heptamers.
+    :param nonamer_positions: (list) The indexes of the nonamers.
     :return:
         cluster_sequences (list) The sequences of J clusters.
         heavy_index (int) The index of the start of the heavy chain.
@@ -158,7 +158,7 @@ def exonuclease_trimming(cluster_sequences):
     """
     Trims a random amount of nucleotides on both sides of the cluster.
 
-    :param cluster_sequences (list) The sequences of the clusters (D, V, J) to trim.
+    :param cluster_sequences: (list) The sequences of the clusters (D, V, J) to trim.
     :return: cluster_sequences (list) The sequences of the clusters (D, V, J) after exonuclease trimming.
     """
 
@@ -195,7 +195,7 @@ def n_addition(cluster_sequences):
     """
     Adds randomly generated nucleotides to both sides of the cluster.
 
-    :param cluster_sequences (list) The sequences of the clusters (D, V, J) after exonuclease trimming.
+    :param cluster_sequences: (list) The sequences of the clusters (D, V, J) after exonuclease trimming.
     :return: cluster_sequences (list) The sequences of the clusters (D, V, J) after n_addition.
     """
 
@@ -242,7 +242,7 @@ def merge_clusters(j_cluster, d_cluster, v_cluster, dna_seq, heavy_chain_start):
     :param d_cluster: (list) The sequences of the found D-clusters, after trimming and p- and n-addition.
     :param v_cluster: (list) The sequences of the found V-clusters, after trimming and p- and n-addition.
     :param dna_seq: (str) The DNA sequence.
-    :param heavy_chain_start (int) The index of the start of the heavy chain.
+    :param heavy_chain_start: (int) The index of the start of the heavy chain.
     :return: sequence_merged: (str) The merged sequence of a random D-, V- and J-cluster.
     """
 
