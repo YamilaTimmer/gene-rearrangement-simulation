@@ -18,11 +18,12 @@ exonuclease trimming.
 4. Makes merged clusters, each having a randomly chosen V-, D-, and J-cluster. And makes sure that the merged clusters
 start with a start codon (ATG).
 5. Translates the merged clusters into amino acid sequences.
-6. Validates if the resulting sequence represents a functional heavy chain.
-
+6. Checks if the resulting amino acid sequences are functional or not and saves them in a corresponding dictionary.
+7. Stops when 10 functional sequences have been generated and prints the functional and non-functional sequences
+(both as amino sequences and DNA sequences).
 
 Usage:
-- Ensure that a valid DNA sequence is present in a text file named `sequentie.txt`.
+- Ensure that a valid DNA sequence is present in a text file named `sequence.txt`.
 - Run the script, and it will keep attempting to generate sequences until 10 functional sequences are generated.
 
 Run the script with:
@@ -51,6 +52,7 @@ def read_sequence():
 def find_rss(dna_seq, rss):
     """
     Finds indexes of RSS (heptamer and nonamer)
+
     :param dna_seq: (str) The sequence to search.
     :param rss: (str) The sequence of the RSS (heptamer/nonamer) to search for.
     :return: rss_indexes: (list) The indexes of the RSS (heptamer/nonamer).
@@ -70,12 +72,13 @@ def find_rss(dna_seq, rss):
 
     return rss_indexes
 
-def find_v_cluster(dna_seq, heptamer_indexes, nonamer_indexes):
+def find_v_cluster(dna_seq, heptamer_positions, nonamer_positions):
     """
-        Finds sequences of v clusters.
+        Finds sequences of V clusters.
+
         :param dna_seq: (str) The sequence to search.
-        :param heptamer_indexes: (list) The indexes of all found heptameres.
-        :param nonamer_indexes: (list) The indexes of all found nonameres.
+        :param heptamer_positions: (list) The indexes of all found heptameres.
+        :param nonamer_positions: (list) The indexes of all found nonameres.
         :return: cluster_sequences (list) The sequences of v clusters.
         """
 
@@ -86,42 +89,43 @@ def find_v_cluster(dna_seq, heptamer_indexes, nonamer_indexes):
     cluster_sequences.append(v_cluster)
 
     #
-    for nonamer_index in nonamer_indexes:
-        for heptamer_index in heptamer_indexes:
-            if heptamer_index > nonamer_index + 9:
-                v_cluster = dna_seq[nonamer_index + 9:heptamer_index]
+    for nonamer_position in nonamer_positions:
+        for heptamer_position in heptamer_positions:
+            if heptamer_position > nonamer_position + 9:
+                v_cluster = dna_seq[nonamer_position + 9:heptamer_position]
                 cluster_sequences.append(v_cluster)
                 break
 
     return cluster_sequences
 
 
-def find_d_cluster(dna_seq, heptamer_indexes):
+def find_d_cluster(dna_seq, heptamer_positions):
     """
-    Finds sequences of d clusters
+    Finds sequences of D clusters
+
     :param dna_seq: (str) The sequence to search.
-    :param heptamer_indexes: (list) The indexes of the heptameres.
+    :param heptamer_positions: (list) The indexes of the heptameres.
     :return: cluster_sequences (list) The sequences of D clusters.
     """
 
     cluster_sequences = []
 
     # Iterates over the list of heptamer_indexes, '-1' is needed because the final heptamer cannot be iterated with [i+1]
-    for i in range(len(heptamer_indexes) - 1):
+    for i in range(len(heptamer_positions) - 1):
 
         # D clusters are found between the end of RSS (heptamer + 7) and the start of a new RSS (heptamer -1)
-        d_cluster = dna_seq[heptamer_indexes[i] + 7:heptamer_indexes[i + 1] -1]
+        d_cluster = dna_seq[heptamer_positions[i] + 7:heptamer_positions[i + 1] -1]
         cluster_sequences.append(d_cluster)
 
     return cluster_sequences
 
 
-def find_j_cluster(dna_seq, heptamer_indexes, nonamer_indexes):
+def find_j_cluster(dna_seq, heptamer_positions, nonamer_positions):
     """
     Finds sequences of j clusters
     :param dna_seq: (str) The sequence to search.
-    :param heptamer_indexes: (list) The indexes of the heptameres.
-    :param nonamer_indexes: (list) The indexes of the nonameres.
+    :param heptamer_positions: (list) The indexes of the heptameres.
+    :param nonamer_positions: (list) The indexes of the nonameres.
     :return:
         cluster_sequences (list) The sequences of J clusters.
         heavy_index (int) The index of the start of the heavy chain.
@@ -131,10 +135,10 @@ def find_j_cluster(dna_seq, heptamer_indexes, nonamer_indexes):
     count = 0
 
     # J-clusters are found between the end of a heptamer [heptamer + 1] and the beginning of a nonamer [nonamer - 1]
-    for nonamer_index in nonamer_indexes:
-        for heptamer_index in heptamer_indexes:
-            if nonamer_index -1 > heptamer_index + 1:
-                j_cluster = sequence[heptamer_index + 1:nonamer_index -1]
+    for nonamer_position in nonamer_positions:
+        for heptamer_position in heptamer_positions:
+            if nonamer_position -1 > heptamer_position + 1:
+                j_cluster = sequence[heptamer_position + 1:nonamer_position -1]
                 cluster_sequences.append(j_cluster)
                 count += 1
 
@@ -142,12 +146,12 @@ def find_j_cluster(dna_seq, heptamer_indexes, nonamer_indexes):
 
     # Adding final J-cluster, which is in between the last heptamer and the start of the constant part of the heavy chain
     heavy_constant = "CCTCCACCAAGG"
-    heavy_index = dna_seq.find(heavy_constant)
+    heavy_chain_start = dna_seq.find(heavy_constant)
 
-    j_cluster = dna_seq[heptamer_indexes[-1] + 1: heavy_index]
+    j_cluster = dna_seq[heptamer_indexes[-1] + 1: heavy_chain_start]
     cluster_sequences.append(j_cluster)
 
-    return cluster_sequences, heavy_index
+    return cluster_sequences, heavy_chain_start
 
 
 def exonuclease_trimming(cluster_sequences):
@@ -167,6 +171,7 @@ def exonuclease_trimming(cluster_sequences):
         cluster_sequences[i] = cluster_sequences[i][:remove_nucleotides_int]
 
     return cluster_sequences
+
 
 def n_addition_seq():
     """
@@ -188,7 +193,7 @@ def n_addition_seq():
 
 def n_addition(cluster_sequences):
     """
-    Adds randomly generated nucleotides to the cluster.
+    Adds randomly generated nucleotides to both sides of the cluster.
 
     :param cluster_sequences (list) The sequences of the clusters (D, V, J) after exonuclease trimming.
     :return: cluster_sequences (list) The sequences of the clusters (D, V, J) after n_addition.
@@ -208,6 +213,7 @@ def n_addition(cluster_sequences):
 
 def p_addition(cluster_sequences):
     """
+    Generates palindrome sequences (2 nucleotides), based on the ends of the cluster and adds them on both sides.
 
     :param cluster_sequences: (list) The sequences of the clusters (D, V, J) after n_addition.
     :return: cluster_sequences: (list) The sequences of the clusters (D, V, J) after p_addition.
@@ -228,7 +234,7 @@ def p_addition(cluster_sequences):
     return cluster_sequences
 
 
-def merge_clusters(j_cluster, d_cluster, v_cluster, dna_seq, heavy_index):
+def merge_clusters(j_cluster, d_cluster, v_cluster, dna_seq, heavy_chain_start):
     """
     Merges the clusters together, randomly choosing a V-, D-, and J-cluster.
 
@@ -236,13 +242,13 @@ def merge_clusters(j_cluster, d_cluster, v_cluster, dna_seq, heavy_index):
     :param d_cluster: (list) The sequences of the found D-clusters, after trimming and p- and n-addition.
     :param v_cluster: (list) The sequences of the found V-clusters, after trimming and p- and n-addition.
     :param dna_seq: (str) The DNA sequence.
-    :param heavy_index (int) The index of the start of the heavy chain.
+    :param heavy_chain_start (int) The index of the start of the heavy chain.
     :return: sequence_merged: (str) The merged sequence of a random D-, V- and J-cluster.
     """
 
     sequence_merged = ""
     sequence_merged += (random.choice(d_cluster) + random.choice(j_cluster) + random.choice(v_cluster) +
-                        dna_seq[heavy_index:])
+                        dna_seq[heavy_chain_start:])
 
     return sequence_merged
 
@@ -363,8 +369,59 @@ def print_result(func_seq, non_func_seq):
 
     print("\nFunctional-sequences found:", len(func_seq), "\nNon-functional-sequences found:", len(non_func_seq))
 
+def automate_pipeline():
+    """
+    Runs all functions that have to run multiple times in the pipeline. It will run until there have been found
+    10 different functional sequences.
+
+    """
+
+    functional_sequences = {}
+    non_functional_sequences = {}
+    max_functional_sequences = 10
+
+    # Pipeline keeps going until 10 functional sequences have been found
+    while len(functional_sequences) < max_functional_sequences:
+
+        # Runs exonuclease trimming function for all cluster types
+        trimmed_j_clusters = exonuclease_trimming(j_cluster_sequences)
+        trimmed_d_clusters = exonuclease_trimming(d_cluster_sequences)
+        trimmed_v_clusters = exonuclease_trimming(v_cluster_sequences)
+
+        # Runs N-addition function for all cluster types
+        n_added_j_clusters = n_addition(trimmed_j_clusters)
+        n_added_d_clusters = n_addition(trimmed_d_clusters)
+        n_added_v_clusters = n_addition(trimmed_v_clusters)
+
+        # Runs P-addition function for all cluster types
+        p_added_j_clusters = p_addition(n_added_j_clusters)
+        p_added_d_clusters = p_addition(n_added_d_clusters)
+        p_added_v_clusters = p_addition(n_added_v_clusters)
+
+        # Makes a merged sequence out of a random J-, D-, and V-cluster and adds the start of the constant part of the
+        # heavy chain
+        sequence_merged = merge_clusters(p_added_j_clusters, p_added_d_clusters, p_added_v_clusters, sequence,
+                                         heavy_index)
+
+        # Trims sequence, so that it starts with a start codon ("ATG")
+        sequence_start = start_sequence(sequence_merged)
+
+        # Converts DNA sequence to amino acids
+        amino_seq = convert_to_aminoacid(sequence_start)
+
+        # Checks if amino sequences are functional
+        func_seq, non_func_seq = functional_check(sequence_start, amino_seq)
+
+        # Dictionaries with functional/non-functional sequences get updated
+        functional_sequences.update(func_seq)
+        non_functional_sequences.update(non_func_seq)
+
+    # Prints end result with 10 functional sequences and an undefined number of non-functioning sequences
+    print_result(functional_sequences, non_functional_sequences)
+
 
 if __name__ == "__main__":
+
     # Calling all pipeline functions in the correct order, with the correct arguments
     sequence = read_sequence()
 
@@ -375,36 +432,5 @@ if __name__ == "__main__":
     d_cluster_sequences = find_d_cluster(sequence, heptamer_indexes)
     j_cluster_sequences, heavy_index = find_j_cluster(sequence, heptamer_indexes, nonamer_indexes)
 
-    functional_sequences = {}
-    non_functional_sequences = {}
+    automate_pipeline()
 
-    max_functional_sequences = 10
-
-    # Pipeline keeps going until 10 functional sequences have been found
-    while len(functional_sequences) < max_functional_sequences:
-        n_seq = n_addition_seq()
-
-        trimmed_j_clusters = exonuclease_trimming(j_cluster_sequences)
-        trimmed_d_clusters = exonuclease_trimming(d_cluster_sequences)
-        trimmed_v_clusters = exonuclease_trimming(v_cluster_sequences)
-
-        n_added_j_clusters = n_addition(trimmed_j_clusters)
-        n_added_d_clusters = n_addition(trimmed_d_clusters)
-        n_added_v_clusters = n_addition(trimmed_v_clusters)
-
-        p_added_j_clusters = p_addition(j_cluster_sequences)
-        p_added_d_clusters = p_addition(d_cluster_sequences)
-        p_added_v_clusters = p_addition(v_cluster_sequences)
-
-        sequence_merged = merge_clusters(p_added_j_clusters, p_added_d_clusters, p_added_v_clusters, sequence,
-                                         heavy_index)
-        sequence_start = start_sequence(sequence_merged)
-
-        amino_seq = convert_to_aminoacid(sequence_start)
-
-        func_seq, non_func_seq = functional_check(sequence_start, amino_seq)
-
-        functional_sequences.update(func_seq)
-        non_functional_sequences.update(non_func_seq)
-
-    print_result(functional_sequences, non_functional_sequences)
